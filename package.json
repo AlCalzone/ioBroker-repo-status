@@ -1,6 +1,6 @@
 {
   "name": "iobroker-repo-status",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "CLI utility to automatically check the build status of ioBroker projects",
   "main": "build/index.js",
   "bin": "bin/iobroker-repo-status.js",

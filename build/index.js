@@ -24,14 +24,16 @@ async function main() {
         if (result) {
             if (result.status === "failure") {
                 logMessage += ansi_colors_1.red("[FAIL]");
+                let hasLink = false;
                 if (result.checks.length) {
                     for (const { status, url } of result.checks) {
                         if (status === "failure") {
+                            hasLink = true;
                             logMessage += `\n· ${ansi_colors_1.red("[FAIL]")} ${url}`;
                         }
                     }
                 }
-                else {
+                if (!hasLink) {
                     logMessage += `\n· ${adapterUrl}`;
                 }
             }
