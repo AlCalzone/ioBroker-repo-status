@@ -9,30 +9,52 @@ interface Ref {
 	ref: string;
 }
 
+type CheckStatus = "success" | "failure" | "pending";
+interface RepoStatus {
+	status: CheckStatus;
+	checks: {
+		status: CheckStatus;
+		url: string;
+	}[]
+};
 
-type CommitStatus = "success" | "failure" | "pending";
-
-async function getCommitStatus(ref: Ref): Promise<CommitStatus | undefined> {
+async function getCommitStatus(ref: Ref): Promise<RepoStatus | undefined> {
 	const url = `https://api.github.com/repos/${ref.owner}/${ref.repo}/commits/${ref.ref}/status`;
 	const response = await axios(url);
 	if (response.data.state === "pending" && response.data.statuses.length === 0) {
 		// This repo is not using the statuses API
 		return;
 	}
-	return response.data.state;
+	return {
+		status: response.data.state,
+		checks: response.data.statuses.map(({ state, target_url }) => ({ status: state, url: target_url })),
+	};
 }
 
 const allowedCIApps = ["GitHub Actions", "Travis CI", "AppVeyor", "CircleCI"];
 
-async function getCheckStatus(ref: Ref): Promise<CommitStatus | undefined> {
+async function getCheckStatus(ref: Ref): Promise<RepoStatus | undefined> {
 	let suites = (await o.checks.listSuitesForRef(ref)).data.check_suites;
 	suites = suites.filter(s => allowedCIApps.includes(s.app.name));
 	if (!suites.length) return;
 
-	const result = suites.some(s => s.status === "queued" || s.status === "in_progress") ? "pending" :
+	const cumulativeStatus = suites.some(s => s.status === "queued" || s.status === "in_progress") ? "pending" :
 		suites.some(s => s.conclusion !== "success") ? "failure"
 			: "success";
-	return result;
+
+	const checkURLs = new Map<number, string>();
+	for (const suite of suites) {
+		const runs = await o.checks.listForSuite({
+			...ref,
+			check_suite_id: suite.id,
+		});
+		checkURLs.set(suite.id, runs.data.check_runs[0].details_url);
+	}
+
+	return {
+		status: cumulativeStatus,
+		checks: suites.map(({ id, status, url }) => ({ status: status as CheckStatus, url: checkURLs.get(id) ?? url })),
+	};
 }
 
 async function main() {
