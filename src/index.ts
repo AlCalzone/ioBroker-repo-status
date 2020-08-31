@@ -1,7 +1,6 @@
 import { getCommitStatus, getCheckStatus, RepoStatus } from "./checks";
-import { readLatestRepo } from "./repo";
+import { readLatestRepo, Repository } from "./repo";
 import { red, yellow, green, bold } from "ansi-colors";
-
 import yargs from "yargs";
 
 if (!yargs.argv.token) {
@@ -23,7 +22,11 @@ async function main() {
 	const maxAdapterNameLength = Math.max(
 		...[...repos.keys()].map(key => key.length),
 	);
-	for (const [adapterName, repo] of repos) {
+
+	async function checkRepo(
+		adapterName: string,
+		repo: Repository,
+	): Promise<string> {
 		const ref = {
 			...repo,
 			ref: "master",
@@ -40,8 +43,7 @@ async function main() {
 		} catch (e) {
 			logMessage += red("[FAIL] Could not load Github repo!");
 			logMessage += `\n· ${adapterUrl}`;
-			console.log(logMessage);
-			continue;
+			return logMessage;
 		}
 
 		if (result) {
@@ -69,7 +71,21 @@ async function main() {
 			logMessage += yellow("[WARN] No CI detected or CI not working!");
 			logMessage += `\n· ${adapterUrl}`;
 		}
-		console.log(logMessage);
+		return logMessage;
+	}
+
+	// Execute some requests in parallel
+	const concurrency = 10;
+	const pools: [string, Repository][][] = [];
+	const all = [...repos];
+	while (all.length > 0) {
+		pools.push(all.splice(0, concurrency))
+	}
+
+	for (const pool of pools) {
+		const tasks = pool.map(([adapterName, repo]) => checkRepo(adapterName, repo));
+		const lines = await Promise.all(tasks);
+		for (const line of lines) console.log(line);
 	}
 }
 

@@ -13,10 +13,10 @@ if (!yargs_1.default.argv.token) {
     process.exit(1);
 }
 async function main() {
-    var _a;
     const repos = await repo_1.readLatestRepo();
     const maxAdapterNameLength = Math.max(...[...repos.keys()].map(key => key.length));
-    for (const [adapterName, repo] of repos) {
+    async function checkRepo(adapterName, repo) {
+        var _a;
         const ref = Object.assign(Object.assign({}, repo), { ref: "master" });
         let logMessage = (adapterName + ":").padEnd(maxAdapterNameLength + 1, " ") + " ";
         const adapterUrl = `https://github.com/${repo.owner}/${repo.repo}`;
@@ -27,8 +27,7 @@ async function main() {
         catch (e) {
             logMessage += ansi_colors_1.red("[FAIL] Could not load Github repo!");
             logMessage += `\n· ${adapterUrl}`;
-            console.log(logMessage);
-            continue;
+            return logMessage;
         }
         if (result) {
             if (result.status === "failure") {
@@ -58,7 +57,20 @@ async function main() {
             logMessage += ansi_colors_1.yellow("[WARN] No CI detected or CI not working!");
             logMessage += `\n· ${adapterUrl}`;
         }
-        console.log(logMessage);
+        return logMessage;
+    }
+    // Execute some requests in parallel
+    const concurrency = 10;
+    const pools = [];
+    const all = [...repos];
+    while (all.length > 0) {
+        pools.push(all.splice(0, concurrency));
+    }
+    for (const pool of pools) {
+        const tasks = pool.map(([adapterName, repo]) => checkRepo(adapterName, repo));
+        const lines = await Promise.all(tasks);
+        for (const line of lines)
+            console.log(line);
     }
 }
 main();
