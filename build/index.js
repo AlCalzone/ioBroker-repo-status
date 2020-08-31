@@ -18,9 +18,18 @@ async function main() {
     const maxAdapterNameLength = Math.max(...[...repos.keys()].map(key => key.length));
     for (const [adapterName, repo] of repos) {
         const ref = Object.assign(Object.assign({}, repo), { ref: "master" });
-        const adapterUrl = `https://github.com/${repo.owner}/${repo.repo}`;
-        const result = (_a = (await checks_1.getCommitStatus(ref))) !== null && _a !== void 0 ? _a : (await checks_1.getCheckStatus(ref));
         let logMessage = (adapterName + ":").padEnd(maxAdapterNameLength + 1, " ") + " ";
+        const adapterUrl = `https://github.com/${repo.owner}/${repo.repo}`;
+        let result;
+        try {
+            result = (_a = (await checks_1.getCommitStatus(ref))) !== null && _a !== void 0 ? _a : (await checks_1.getCheckStatus(ref));
+        }
+        catch (e) {
+            logMessage += ansi_colors_1.red("[FAIL] Could not load Github repo!");
+            logMessage += `\n· ${adapterUrl}`;
+            console.log(logMessage);
+            continue;
+        }
         if (result) {
             if (result.status === "failure") {
                 logMessage += ansi_colors_1.red("[FAIL]");
@@ -53,9 +62,9 @@ async function main() {
     }
 }
 main();
-process.on("uncaughtException", (err) => {
+process.on("uncaughtException", err => {
     console.error(err);
 });
-process.on("unhandledRejection", (r) => {
+process.on("unhandledRejection", r => {
     throw r;
 });

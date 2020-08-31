@@ -14,7 +14,7 @@ async function getCommitStatus(ref) {
     const url = `https://api.github.com/repos/${ref.owner}/${ref.repo}/commits/${ref.ref}/status`;
     const response = await axios_1.default({
         url,
-        headers: Object.assign({}, (authToken ? { Authorization: `token ${authToken}` } : {}))
+        headers: Object.assign({}, (authToken ? { Authorization: `token ${authToken}` } : {})),
     });
     if (response.data.state === "pending" &&
         response.data.statuses.length === 0) {

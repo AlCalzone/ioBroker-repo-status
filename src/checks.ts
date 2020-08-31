@@ -7,9 +7,7 @@ const authToken = yargs.argv.token;
 // These Github Apps are recognized as CI services
 const allowedCIApps = ["GitHub Actions", "Travis CI", "AppVeyor", "CircleCI"];
 
-const o = new Octokit(
-	authToken ? {auth: authToken} : {}
-);
+const o = new Octokit(authToken ? { auth: authToken } : {});
 
 interface Ref {
 	owner: string;
@@ -19,7 +17,7 @@ interface Ref {
 
 type CheckStatus = "success" | "failure" | "pending";
 
-interface RepoStatus {
+export interface RepoStatus {
 	status: CheckStatus;
 	checks: {
 		status: CheckStatus;
@@ -34,8 +32,8 @@ export async function getCommitStatus(
 	const response = await axios({
 		url,
 		headers: {
-			...(authToken ? {Authorization: `token ${authToken}`} : {}),
-		}
+			...(authToken ? { Authorization: `token ${authToken}` } : {}),
+		},
 	});
 	if (
 		response.data.state === "pending" &&

@@ -1,12 +1,20 @@
-import { getCommitStatus, getCheckStatus } from "./checks";
+import { getCommitStatus, getCheckStatus, RepoStatus } from "./checks";
 import { readLatestRepo } from "./repo";
 import { red, yellow, green, bold } from "ansi-colors";
 
 import yargs from "yargs";
 
 if (!yargs.argv.token) {
-	console.error(red(`ERROR: You need a github token to use this because of rate limits!`));
-	console.error(red(`Please pass one with the argument --token=${bold("<your-token>")}`));
+	console.error(
+		red(
+			`ERROR: You need a github token to use this because of rate limits!`,
+		),
+	);
+	console.error(
+		red(
+			`Please pass one with the argument --token=${bold("<your-token>")}`,
+		),
+	);
 	process.exit(1);
 }
 
@@ -20,12 +28,22 @@ async function main() {
 			...repo,
 			ref: "master",
 		};
-		const adapterUrl = `https://github.com/${repo.owner}/${repo.repo}`;
-
-		const result =
-			(await getCommitStatus(ref)) ?? (await getCheckStatus(ref));
 		let logMessage =
 			(adapterName + ":").padEnd(maxAdapterNameLength + 1, " ") + " ";
+
+		const adapterUrl = `https://github.com/${repo.owner}/${repo.repo}`;
+
+		let result: RepoStatus | undefined;
+		try {
+			result =
+				(await getCommitStatus(ref)) ?? (await getCheckStatus(ref));
+		} catch (e) {
+			logMessage += red("[FAIL] Could not load Github repo!");
+			logMessage += `\n· ${adapterUrl}`;
+			console.log(logMessage);
+			continue;
+		}
+
 		if (result) {
 			if (result.status === "failure") {
 				logMessage += red("[FAIL]");
@@ -57,9 +75,9 @@ async function main() {
 
 main();
 
-process.on("uncaughtException", (err) => {
+process.on("uncaughtException", err => {
 	console.error(err);
-})
-process.on("unhandledRejection", (r) => {
+});
+process.on("unhandledRejection", r => {
 	throw r;
-})
+});
