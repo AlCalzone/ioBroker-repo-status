@@ -27,6 +27,6 @@ jobs:
     - name: Run update action
       uses: ./.github/actions/status
       with:
-        githubToken: ${{ secrets.GITHUB_TOKEN }}
+        githubToken: ${{ secrets.FOO_TOKEN }}
       env:
         CI: true

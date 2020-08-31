@@ -10,18 +10,23 @@ const context = github.context;
 (async function main() {
 	let result = "";
 
-	const options = {};
-	options.listeners = {
-		stdout: data => {
-			result += data.toString();
-		},
+	/** @type {import("@actions/exec").ExecOptions} */
+	const options = {
+		env: {
+			...process.env,
+			GITHUB_TOKEN: githubToken
+		}, 
+		listeners: {
+			stdout: data => {
+				result += data.toString();
+			},
+		}
 	};
 
-	await exec.exec("npm", ["run", "start", "--", "--token=" + githubToken], options);
+	await exec.exec("node", ["./bin/iobroker-repo-status.js"], options);
 
 	// TODO: Convert to table
 	result = c.stripColor(result);
-
 	result = `This is the current adapter build status at ${new Date().toISOString()}:
 
 \`\`\`

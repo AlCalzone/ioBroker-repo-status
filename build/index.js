@@ -7,9 +7,9 @@ const checks_1 = require("./checks");
 const repo_1 = require("./repo");
 const ansi_colors_1 = require("ansi-colors");
 const yargs_1 = __importDefault(require("yargs"));
-if (!yargs_1.default.argv.token) {
+if (!yargs_1.default.argv.token && !process.env.GITHUB_TOKEN) {
     console.error(ansi_colors_1.red(`ERROR: You need a github token to use this because of rate limits!`));
-    console.error(ansi_colors_1.red(`Please pass one with the argument --token=${ansi_colors_1.bold("<your-token>")}`));
+    console.error(ansi_colors_1.red(`Please pass one with the argument --token=${ansi_colors_1.bold("<your-token>")} or the GITHUB_TOKEN environment variable`));
     process.exit(1);
 }
 async function main() {

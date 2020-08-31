@@ -3,7 +3,7 @@ import { readLatestRepo, Repository } from "./repo";
 import { red, yellow, green, bold } from "ansi-colors";
 import yargs from "yargs";
 
-if (!yargs.argv.token) {
+if (!yargs.argv.token && !process.env.GITHUB_TOKEN) {
 	console.error(
 		red(
 			`ERROR: You need a github token to use this because of rate limits!`,
@@ -11,7 +11,7 @@ if (!yargs.argv.token) {
 	);
 	console.error(
 		red(
-			`Please pass one with the argument --token=${bold("<your-token>")}`,
+			`Please pass one with the argument --token=${bold("<your-token>")} or the GITHUB_TOKEN environment variable`,
 		),
 	);
 	process.exit(1);

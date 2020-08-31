@@ -2,7 +2,7 @@ import { Octokit } from "@octokit/rest";
 import yargs from "yargs";
 import axios from "axios";
 
-const authToken = yargs.argv.token;
+const authToken = yargs.argv.token || process.env.GITHUB_TOKEN;
 
 // These Github Apps are recognized as CI services
 const allowedCIApps = ["GitHub Actions", "Travis CI", "AppVeyor", "CircleCI"];

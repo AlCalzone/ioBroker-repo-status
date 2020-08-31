@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const rest_1 = require("@octokit/rest");
 const yargs_1 = __importDefault(require("yargs"));
 const axios_1 = __importDefault(require("axios"));
-const authToken = yargs_1.default.argv.token;
+const authToken = yargs_1.default.argv.token || process.env.GITHUB_TOKEN;
 // These Github Apps are recognized as CI services
 const allowedCIApps = ["GitHub Actions", "Travis CI", "AppVeyor", "CircleCI"];
 const o = new rest_1.Octokit(authToken ? { auth: authToken } : {});
