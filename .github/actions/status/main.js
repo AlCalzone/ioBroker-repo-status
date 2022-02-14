@@ -28,7 +28,7 @@ const context = github.context;
 	result = c.stripColor(result);
 
 	// Sort lines by status
-	const lines = result.split("\n");
+	const lines = result.split("\n").filter(line => !!line.trim());
 	const successLines = lines.filter(l => l.includes("✅"));
 	const errorLines = lines.filter(l => l.includes("❌"));
 	const warningLines = lines.filter(l => l.includes("⚠"));
