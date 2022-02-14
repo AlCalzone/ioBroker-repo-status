@@ -1,7 +1,8 @@
 import { getCommitStatus, getCheckStatus, RepoStatus } from "./checks";
 import { readLatestRepo, Repository } from "./repo";
-import { red, yellow, green, bold } from "ansi-colors";
+import { red, yellow, green, bold, blue } from "ansi-colors";
 import yargs from "yargs";
+import { wait } from "alcalzone-shared/async";
 
 if (!yargs.argv.token && !process.env.GITHUB_TOKEN) {
 	console.error(
@@ -11,7 +12,9 @@ if (!yargs.argv.token && !process.env.GITHUB_TOKEN) {
 	);
 	console.error(
 		red(
-			`Please pass one with the argument --token=${bold("<your-token>")} or the GITHUB_TOKEN environment variable`,
+			`Please pass one with the argument --token=${bold(
+				"<your-token>",
+			)} or the GITHUB_TOKEN environment variable`,
 		),
 	);
 	process.exit(1);
@@ -20,7 +23,7 @@ if (!yargs.argv.token && !process.env.GITHUB_TOKEN) {
 async function main() {
 	const repos = await readLatestRepo();
 	const maxAdapterNameLength = Math.max(
-		...[...repos.keys()].map(key => key.length),
+		...[...repos.keys()].map((key) => key.length),
 	);
 
 	async function checkRepo(
@@ -37,13 +40,45 @@ async function main() {
 		const adapterUrl = `https://github.com/${repo.owner}/${repo.repo}`;
 
 		let result: RepoStatus | undefined;
-		try {
-			result =
-				(await getCommitStatus(ref)) ?? (await getCheckStatus(ref));
-		} catch (e) {
-			logMessage += red("[FAIL] Could not load Github repo!");
-			logMessage += `\n· ${adapterUrl}`;
-			return logMessage;
+		// If we hit the rate limiter, try up to 3 times
+		const retryAttempts = 3;
+		for (let i = 0; i < retryAttempts; i++) {
+			try {
+				result =
+					(await getCommitStatus(ref)) ?? (await getCheckStatus(ref));
+				continue;
+			} catch (e: any) {
+				const responseCode = e.response?.code;
+				if (i < retryAttempts - 1) {
+					const headers = e.response?.headers;
+					if (headers && headers["x-ratelimit-remaining"] === "0") {
+						let resetTimeout: number;
+						if ("x-ratelimit-reset" in headers) {
+							resetTimeout =
+								parseInt(headers["x-ratelimit-reset"]) * 1000 -
+								Date.now();
+						} else {
+							// Github's rate limit is reset every hour
+							resetTimeout = 60 * 60 * 1000; // 1h in ms
+						}
+						console.error(
+							blue(
+								`Hit the rate limit, waiting ${Math.round(
+									resetTimeout / 1000 / 60,
+								)} minutes...`,
+							),
+						);
+						await wait(resetTimeout);
+						continue;
+					}
+				}
+				logMessage += red("[FAIL] Could not load Github repo!");
+				if (responseCode) {
+					logMessage += red(` (code ${responseCode})`);
+				}
+				logMessage += `\n· ${adapterUrl}`;
+				return logMessage;
+			}
 		}
 
 		if (result) {
@@ -79,11 +114,13 @@ async function main() {
 	const pools: [string, Repository][][] = [];
 	const all = [...repos];
 	while (all.length > 0) {
-		pools.push(all.splice(0, concurrency))
+		pools.push(all.splice(0, concurrency));
 	}
 
 	for (const pool of pools) {
-		const tasks = pool.map(([adapterName, repo]) => checkRepo(adapterName, repo));
+		const tasks = pool.map(([adapterName, repo]) =>
+			checkRepo(adapterName, repo),
+		);
 		const lines = await Promise.all(tasks);
 		for (const line of lines) console.log(line);
 	}
@@ -91,9 +128,9 @@ async function main() {
 
 main();
 
-process.on("uncaughtException", err => {
+process.on("uncaughtException", (err) => {
 	console.error(err);
 });
-process.on("unhandledRejection", r => {
+process.on("unhandledRejection", (r) => {
 	throw r;
 });

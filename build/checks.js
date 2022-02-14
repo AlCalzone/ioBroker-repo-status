@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getCheckStatus = exports.getCommitStatus = void 0;
 const rest_1 = require("@octokit/rest");
 const yargs_1 = __importDefault(require("yargs"));
 const axios_1 = __importDefault(require("axios"));
@@ -12,7 +13,7 @@ const allowedCIApps = ["GitHub Actions", "Travis CI", "AppVeyor", "CircleCI"];
 const o = new rest_1.Octokit(authToken ? { auth: authToken } : {});
 async function getCommitStatus(ref) {
     const url = `https://api.github.com/repos/${ref.owner}/${ref.repo}/commits/${ref.ref}/status`;
-    const response = await axios_1.default({
+    const response = await (0, axios_1.default)({
         url,
         headers: Object.assign({}, (authToken ? { Authorization: `token ${authToken}` } : {})),
     });
