@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getCheckStatus = exports.getCommitStatus = void 0;
+exports.getCheckStatus = exports.getCommitStatus = exports.getRepoDefaultBranch = void 0;
 const rest_1 = require("@octokit/rest");
 const yargs_1 = __importDefault(require("yargs"));
 const axios_1 = __importDefault(require("axios"));
@@ -11,6 +11,15 @@ const authToken = yargs_1.default.argv.token || process.env.GITHUB_TOKEN;
 // These Github Apps are recognized as CI services
 const allowedCIApps = ["GitHub Actions", "Travis CI", "AppVeyor", "CircleCI"];
 const o = new rest_1.Octokit(authToken ? { auth: authToken } : {});
+async function getRepoDefaultBranch(owner, repo) {
+    const url = `https://api.github.com/repos/${owner}/${repo}`;
+    const response = await (0, axios_1.default)({
+        url,
+        headers: Object.assign({}, (authToken ? { Authorization: `token ${authToken}` } : {})),
+    });
+    return response.data.default_branch;
+}
+exports.getRepoDefaultBranch = getRepoDefaultBranch;
 async function getCommitStatus(ref) {
     const url = `https://api.github.com/repos/${ref.owner}/${ref.repo}/commits/${ref.ref}/status`;
     const response = await (0, axios_1.default)({

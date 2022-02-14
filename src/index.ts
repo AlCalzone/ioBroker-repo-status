@@ -1,8 +1,9 @@
-import { getCommitStatus, getCheckStatus, RepoStatus } from "./checks";
+import { getCommitStatus, getCheckStatus, RepoStatus, getRepoDefaultBranch } from "./checks";
 import { readLatestRepo, Repository } from "./repo";
 import { red, yellow, green, bold, blue } from "ansi-colors";
 import yargs from "yargs";
 import { wait } from "alcalzone-shared/async";
+import { tryGetRateLimitWaitTime } from "./utils";
 
 if (!yargs.argv.token && !process.env.GITHUB_TOKEN) {
 	console.error(
@@ -30,10 +31,6 @@ async function main() {
 		adapterName: string,
 		repo: Repository,
 	): Promise<string> {
-		const ref = {
-			...repo,
-			ref: "master",
-		};
 		let logMessage =
 			(adapterName + ":").padEnd(maxAdapterNameLength + 1, " ") + " ";
 
@@ -44,23 +41,19 @@ async function main() {
 		const retryAttempts = 3;
 		for (let i = 0; i < retryAttempts; i++) {
 			try {
+				// Find the default branch, which could be something different than master
+				const ref = {
+					...repo,
+					ref: await getRepoDefaultBranch(repo.owner, repo.repo),
+				};
+				// and find the commit/check status for it
 				result =
 					(await getCommitStatus(ref)) ?? (await getCheckStatus(ref));
-				continue;
+				break;
 			} catch (e: any) {
-				const responseCode = e.response?.code;
 				if (i < retryAttempts - 1) {
-					const headers = e.response?.headers;
-					if (headers && headers["x-ratelimit-remaining"] === "0") {
-						let resetTimeout: number;
-						if ("x-ratelimit-reset" in headers) {
-							resetTimeout =
-								parseInt(headers["x-ratelimit-reset"]) * 1000 -
-								Date.now();
-						} else {
-							// Github's rate limit is reset every hour
-							resetTimeout = 60 * 60 * 1000; // 1h in ms
-						}
+					const resetTimeout = tryGetRateLimitWaitTime(e);
+					if (typeof resetTimeout === "number") {
 						console.error(
 							blue(
 								`Hit the rate limit, waiting ${Math.round(
@@ -68,15 +61,28 @@ async function main() {
 								)} minutes...`,
 							),
 						);
-						await wait(resetTimeout);
+						// Add one minute buffer
+						await wait(resetTimeout + 60 * 1000);
 						continue;
 					}
 				}
 				logMessage += red("[FAIL] Could not load Github repo!");
-				if (responseCode) {
-					logMessage += red(` (code ${responseCode})`);
+				if (e.response?.status) {
+					logMessage += red(
+						` (status ${e.response.status}, ${e.response.statusText})`,
+					);
 				}
 				logMessage += `\n· ${adapterUrl}`;
+
+				// Add debug logging so we can see the response headers
+				if (e.response?.headers) {
+					console.error();
+					console.error(blue(`Response headers for ${adapterUrl}:`));
+					for (const [h, val] of Object.entries(e.response.headers)) {
+						console.error(blue(`· ${h}: ${val}`));
+					}
+				}
+
 				return logMessage;
 			}
 		}

@@ -25,6 +25,21 @@ export interface RepoStatus {
 	}[];
 }
 
+export async function getRepoDefaultBranch(
+	owner: string,
+	repo: string,
+): Promise<string> {
+	const url = `https://api.github.com/repos/${owner}/${repo}`;
+	const response = await axios({
+		url,
+		headers: {
+			...(authToken ? { Authorization: `token ${authToken}` } : {}),
+		},
+	});
+	return response.data.default_branch;
+}
+
+
 export async function getCommitStatus(
 	ref: Ref,
 ): Promise<RepoStatus | undefined> {

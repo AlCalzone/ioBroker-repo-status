@@ -8,6 +8,7 @@ const repo_1 = require("./repo");
 const ansi_colors_1 = require("ansi-colors");
 const yargs_1 = __importDefault(require("yargs"));
 const async_1 = require("alcalzone-shared/async");
+const utils_1 = require("./utils");
 if (!yargs_1.default.argv.token && !process.env.GITHUB_TOKEN) {
     console.error((0, ansi_colors_1.red)(`ERROR: You need a github token to use this because of rate limits!`));
     console.error((0, ansi_colors_1.red)(`Please pass one with the argument --token=${(0, ansi_colors_1.bold)("<your-token>")} or the GITHUB_TOKEN environment variable`));
@@ -18,7 +19,6 @@ async function main() {
     const maxAdapterNameLength = Math.max(...[...repos.keys()].map((key) => key.length));
     async function checkRepo(adapterName, repo) {
         var _a, _b, _c;
-        const ref = Object.assign(Object.assign({}, repo), { ref: "master" });
         let logMessage = (adapterName + ":").padEnd(maxAdapterNameLength + 1, " ") + " ";
         const adapterUrl = `https://github.com/${repo.owner}/${repo.repo}`;
         let result;
@@ -26,35 +26,36 @@ async function main() {
         const retryAttempts = 3;
         for (let i = 0; i < retryAttempts; i++) {
             try {
+                // Find the default branch, which could be something different than master
+                const ref = Object.assign(Object.assign({}, repo), { ref: await (0, checks_1.getRepoDefaultBranch)(repo.owner, repo.repo) });
+                // and find the commit/check status for it
                 result =
                     (_a = (await (0, checks_1.getCommitStatus)(ref))) !== null && _a !== void 0 ? _a : (await (0, checks_1.getCheckStatus)(ref));
-                continue;
+                break;
             }
             catch (e) {
-                const responseCode = (_b = e.response) === null || _b === void 0 ? void 0 : _b.code;
                 if (i < retryAttempts - 1) {
-                    const headers = (_c = e.response) === null || _c === void 0 ? void 0 : _c.headers;
-                    if (headers && headers["x-ratelimit-remaining"] === "0") {
-                        let resetTimeout;
-                        if ("x-ratelimit-reset" in headers) {
-                            resetTimeout =
-                                parseInt(headers["x-ratelimit-reset"]) * 1000 -
-                                    Date.now();
-                        }
-                        else {
-                            // Github's rate limit is reset every hour
-                            resetTimeout = 60 * 60 * 1000; // 1h in ms
-                        }
+                    const resetTimeout = (0, utils_1.tryGetRateLimitWaitTime)(e);
+                    if (typeof resetTimeout === "number") {
                         console.error((0, ansi_colors_1.blue)(`Hit the rate limit, waiting ${Math.round(resetTimeout / 1000 / 60)} minutes...`));
-                        await (0, async_1.wait)(resetTimeout);
+                        // Add one minute buffer
+                        await (0, async_1.wait)(resetTimeout + 60 * 1000);
                         continue;
                     }
                 }
                 logMessage += (0, ansi_colors_1.red)("[FAIL] Could not load Github repo!");
-                if (responseCode) {
-                    logMessage += (0, ansi_colors_1.red)(` (code ${responseCode})`);
+                if ((_b = e.response) === null || _b === void 0 ? void 0 : _b.status) {
+                    logMessage += (0, ansi_colors_1.red)(` (status ${e.response.status}, ${e.response.statusText})`);
                 }
                 logMessage += `\n· ${adapterUrl}`;
+                // Add debug logging so we can see the response headers
+                if ((_c = e.response) === null || _c === void 0 ? void 0 : _c.headers) {
+                    console.error();
+                    console.error((0, ansi_colors_1.blue)(`Response headers for ${adapterUrl}:`));
+                    for (const [h, val] of Object.entries(e.response.headers)) {
+                        console.error((0, ansi_colors_1.blue)(`· ${h}: ${val}`));
+                    }
+                }
                 return logMessage;
             }
         }
