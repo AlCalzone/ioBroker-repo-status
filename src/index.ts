@@ -1,4 +1,9 @@
-import { getCommitStatus, getCheckStatus, RepoStatus, getRepoDefaultBranch } from "./checks";
+import {
+	getCommitStatus,
+	getCheckStatus,
+	RepoStatus,
+	getRepoDefaultBranch,
+} from "./checks";
 import { readLatestRepo, Repository } from "./repo";
 import { red, yellow, green, bold, blue } from "ansi-colors";
 import yargs from "yargs";
@@ -31,8 +36,9 @@ async function main() {
 		adapterName: string,
 		repo: Repository,
 	): Promise<string> {
-		let logMessage =
-			(adapterName + ":").padEnd(maxAdapterNameLength + 1, " ") + " ";
+		// let logMessage =
+		// 	(adapterName + ":").padEnd(maxAdapterNameLength + 1, " ") + " ";
+		let logMessage = `| ${adapterName} | `;
 
 		const adapterUrl = `https://github.com/${repo.owner}/${repo.repo}`;
 
@@ -66,13 +72,18 @@ async function main() {
 						continue;
 					}
 				}
-				logMessage += red("[FAIL] Could not load Github repo!");
+				logMessage += ` ❌ FAIL | Could not load Github repo! `;
+				// logMessage += red("[FAIL] Could not load Github repo!");
 				if (e.response?.status) {
-					logMessage += red(
-						` (status ${e.response.status}, ${e.response.statusText})`,
-					);
+					logMessage += ` (status ${e.response.status}, ${e.response.statusText})`;
 				}
-				logMessage += `\n· ${adapterUrl}`;
+				// if (e.response?.status) {
+				// 	logMessage += red(
+				// 		` (status ${e.response.status}, ${e.response.statusText})`,
+				// 	);
+				// }
+				logMessage += `<br />${adapterUrl} |`;
+				// logMessage += `\n· ${adapterUrl}`;
 
 				// Add debug logging so we can see the response headers
 				if (e.response?.headers) {
@@ -89,28 +100,34 @@ async function main() {
 
 		if (result) {
 			if (result.status === "failure") {
-				logMessage += red("[FAIL]");
+				// logMessage += red("[FAIL]");
+				logMessage += `❌ FAIL | `;
 				let hasLink = false;
 				if (result.checks.length) {
 					for (const { status, url } of result.checks) {
 						if (status === "failure") {
+							// logMessage += `\n· ${red("[FAIL]")} ${url}`;
+							logMessage += `${hasLink ? "<br />" : ""}🧪 ${url}`;
 							hasLink = true;
-							logMessage += `\n· ${red("[FAIL]")} ${url}`;
 						}
 					}
 				}
 				if (!hasLink) {
-					logMessage += `\n· ${adapterUrl}`;
+					logMessage += adapterUrl;
 				}
+				logMessage += " |";
 			} else if (result.status === "success") {
-				logMessage += green("[SUCCESS]");
+				logMessage += "✅ SUCCESS |  |";
+				// logMessage += green("[SUCCESS]");
 			} else if (result.status === "pending") {
-				logMessage += yellow("[PENDING]");
-				logMessage += `\n· ${adapterUrl}`;
+				logMessage += `⏳ PENDING | ${adapterUrl} |`;
+				// logMessage += yellow("[PENDING]");
+				// logMessage += `\n· ${adapterUrl}`;
 			}
 		} else {
-			logMessage += yellow("[WARN] No CI detected or CI not working!");
-			logMessage += `\n· ${adapterUrl}`;
+			logMessage += `⚠ WARN | No CI detected or CI not working!<br />${adapterUrl} |`;
+			// logMessage += yellow("[WARN] No CI detected or CI not working!");
+			// logMessage += `\n· ${adapterUrl}`;
 		}
 		return logMessage;
 	}
@@ -122,6 +139,9 @@ async function main() {
 	while (all.length > 0) {
 		pools.push(all.splice(0, concurrency));
 	}
+
+	console.log("| Adapter | Status | Comment / Link |");
+	console.log("| :------ | :----- | :------------- |");
 
 	for (const pool of pools) {
 		const tasks = pool.map(([adapterName, repo]) =>

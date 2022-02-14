@@ -19,7 +19,9 @@ async function main() {
     const maxAdapterNameLength = Math.max(...[...repos.keys()].map((key) => key.length));
     async function checkRepo(adapterName, repo) {
         var _a, _b, _c;
-        let logMessage = (adapterName + ":").padEnd(maxAdapterNameLength + 1, " ") + " ";
+        // let logMessage =
+        // 	(adapterName + ":").padEnd(maxAdapterNameLength + 1, " ") + " ";
+        let logMessage = `| ${adapterName} | `;
         const adapterUrl = `https://github.com/${repo.owner}/${repo.repo}`;
         let result;
         // If we hit the rate limiter, try up to 3 times
@@ -43,11 +45,18 @@ async function main() {
                         continue;
                     }
                 }
-                logMessage += (0, ansi_colors_1.red)("[FAIL] Could not load Github repo!");
+                logMessage += ` ❌ FAIL | Could not load Github repo! `;
+                // logMessage += red("[FAIL] Could not load Github repo!");
                 if ((_b = e.response) === null || _b === void 0 ? void 0 : _b.status) {
-                    logMessage += (0, ansi_colors_1.red)(` (status ${e.response.status}, ${e.response.statusText})`);
+                    logMessage += ` (status ${e.response.status}, ${e.response.statusText})`;
                 }
-                logMessage += `\n· ${adapterUrl}`;
+                // if (e.response?.status) {
+                // 	logMessage += red(
+                // 		` (status ${e.response.status}, ${e.response.statusText})`,
+                // 	);
+                // }
+                logMessage += `<br />${adapterUrl} |`;
+                // logMessage += `\n· ${adapterUrl}`;
                 // Add debug logging so we can see the response headers
                 if ((_c = e.response) === null || _c === void 0 ? void 0 : _c.headers) {
                     console.error();
@@ -61,31 +70,37 @@ async function main() {
         }
         if (result) {
             if (result.status === "failure") {
-                logMessage += (0, ansi_colors_1.red)("[FAIL]");
+                // logMessage += red("[FAIL]");
+                logMessage += `❌ FAIL | `;
                 let hasLink = false;
                 if (result.checks.length) {
                     for (const { status, url } of result.checks) {
                         if (status === "failure") {
+                            // logMessage += `\n· ${red("[FAIL]")} ${url}`;
+                            logMessage += `${hasLink ? "<br />" : ""}🧪 ${url}`;
                             hasLink = true;
-                            logMessage += `\n· ${(0, ansi_colors_1.red)("[FAIL]")} ${url}`;
                         }
                     }
                 }
                 if (!hasLink) {
-                    logMessage += `\n· ${adapterUrl}`;
+                    logMessage += adapterUrl;
                 }
+                logMessage += " |";
             }
             else if (result.status === "success") {
-                logMessage += (0, ansi_colors_1.green)("[SUCCESS]");
+                logMessage += "✅ SUCCESS |  |";
+                // logMessage += green("[SUCCESS]");
             }
             else if (result.status === "pending") {
-                logMessage += (0, ansi_colors_1.yellow)("[PENDING]");
-                logMessage += `\n· ${adapterUrl}`;
+                logMessage += `⏳ PENDING | ${adapterUrl} |`;
+                // logMessage += yellow("[PENDING]");
+                // logMessage += `\n· ${adapterUrl}`;
             }
         }
         else {
-            logMessage += (0, ansi_colors_1.yellow)("[WARN] No CI detected or CI not working!");
-            logMessage += `\n· ${adapterUrl}`;
+            logMessage += `⚠ WARN | No CI detected or CI not working!<br />${adapterUrl} |`;
+            // logMessage += yellow("[WARN] No CI detected or CI not working!");
+            // logMessage += `\n· ${adapterUrl}`;
         }
         return logMessage;
     }
@@ -96,6 +111,8 @@ async function main() {
     while (all.length > 0) {
         pools.push(all.splice(0, concurrency));
     }
+    console.log("| Adapter | Status | Comment / Link |");
+    console.log("| :------ | :----- | :------------- |");
     for (const pool of pools) {
         const tasks = pool.map(([adapterName, repo]) => checkRepo(adapterName, repo));
         const lines = await Promise.all(tasks);
