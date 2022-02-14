@@ -18,11 +18,11 @@ async function main() {
     const repos = await (0, repo_1.readLatestRepo)();
     const maxAdapterNameLength = Math.max(...[...repos.keys()].map((key) => key.length));
     async function checkRepo(adapterName, repo) {
-        var _a, _b, _c;
         // let logMessage =
         // 	(adapterName + ":").padEnd(maxAdapterNameLength + 1, " ") + " ";
-        let logMessage = `| ${adapterName} | `;
+        var _a, _b, _c;
         const adapterUrl = `https://github.com/${repo.owner}/${repo.repo}`;
+        let logMessage = `| [${adapterName}](${adapterUrl}) | `;
         let result;
         // If we hit the rate limiter, try up to 3 times
         const retryAttempts = 3;
@@ -45,7 +45,7 @@ async function main() {
                         continue;
                     }
                 }
-                logMessage += ` ❌ FAIL | Could not load Github repo! `;
+                logMessage += ` ❌&nbsp;FAIL | Could not load Github repo! `;
                 // logMessage += red("[FAIL] Could not load Github repo!");
                 if ((_b = e.response) === null || _b === void 0 ? void 0 : _b.status) {
                     logMessage += ` (status ${e.response.status}, ${e.response.statusText})`;
@@ -55,7 +55,7 @@ async function main() {
                 // 		` (status ${e.response.status}, ${e.response.statusText})`,
                 // 	);
                 // }
-                logMessage += `<br />${adapterUrl} |`;
+                logMessage += ` |`;
                 // logMessage += `\n· ${adapterUrl}`;
                 // Add debug logging so we can see the response headers
                 if ((_c = e.response) === null || _c === void 0 ? void 0 : _c.headers) {
@@ -71,34 +71,31 @@ async function main() {
         if (result) {
             if (result.status === "failure") {
                 // logMessage += red("[FAIL]");
-                logMessage += `❌ FAIL | `;
+                logMessage += `❌&nbsp;FAIL | `;
                 let hasLink = false;
                 if (result.checks.length) {
                     for (const { status, url } of result.checks) {
                         if (status === "failure") {
                             // logMessage += `\n· ${red("[FAIL]")} ${url}`;
-                            logMessage += `${hasLink ? "<br />" : ""}🧪 ${url}`;
+                            logMessage += `${hasLink ? "<br />" : ""}🧪 [failing check](${url})`;
                             hasLink = true;
                         }
                     }
                 }
-                if (!hasLink) {
-                    logMessage += adapterUrl;
-                }
                 logMessage += " |";
             }
             else if (result.status === "success") {
-                logMessage += "✅ SUCCESS |  |";
+                logMessage += "✅&nbsp;SUCCESS |  |";
                 // logMessage += green("[SUCCESS]");
             }
             else if (result.status === "pending") {
-                logMessage += `⏳ PENDING | ${adapterUrl} |`;
+                logMessage += `⏳&nbsp;PENDING |  |`;
                 // logMessage += yellow("[PENDING]");
                 // logMessage += `\n· ${adapterUrl}`;
             }
         }
         else {
-            logMessage += `⚠ WARN | No CI detected or CI not working!<br />${adapterUrl} |`;
+            logMessage += `⚠&nbsp;WARN | No CI detected or CI not working! |`;
             // logMessage += yellow("[WARN] No CI detected or CI not working!");
             // logMessage += `\n· ${adapterUrl}`;
         }
@@ -111,7 +108,7 @@ async function main() {
     while (all.length > 0) {
         pools.push(all.splice(0, concurrency));
     }
-    console.log("| Adapter | Status | Comment / Link |");
+    console.log("| Adapter | Status | Comment        |");
     console.log("| :------ | :----- | :------------- |");
     for (const pool of pools) {
         const tasks = pool.map(([adapterName, repo]) => checkRepo(adapterName, repo));

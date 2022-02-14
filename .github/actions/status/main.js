@@ -25,13 +25,21 @@ const context = github.context;
 
 	await exec.exec("node", ["./bin/iobroker-repo-status.js"], options);
 
-	// TODO: Convert to table
 	result = c.stripColor(result);
+
+	// Sort lines by status
+	const lines = result.split("\n");
+	const successLines = lines.filter(l => l.includes("✅"));
+	const errorLines = lines.filter(l => l.includes("❌"));
+	const warningLines = lines.filter(l => l.includes("⚠"));
+	const pendingLines = lines.filter(l => l.includes("⏳"));
+	const otherLines = lines.filter(l => !l.includes("✅") && !l.includes("❌") && !l.includes("⚠") && !l.includes("⏳"));
+
+	result = [...otherLines, ...successLines, ...errorLines, ...warningLines, ...pendingLines].join("\n");
+
 	result = `This is the current adapter build status at ${new Date().toISOString()}:
 
-\`\`\`
 ${result}
-\`\`\`
 `;
 
 	const { data: { body: oldBody } } = await octokit.issues.get({
