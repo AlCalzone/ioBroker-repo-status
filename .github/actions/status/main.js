@@ -35,9 +35,17 @@ const context = github.context;
 	const pendingLines = lines.filter(l => l.includes("⏳"));
 	const otherLines = lines.filter(l => !l.includes("✅") && !l.includes("❌") && !l.includes("⚠") && !l.includes("⏳"));
 
+	const total = successLines.length + errorLines.length + warningLines.length + pendingLines.length;
+
 	result = [...otherLines, ...successLines, ...errorLines, ...warningLines, ...pendingLines].join("\n");
 
 	result = `This is the current adapter build status at ${new Date().toISOString()}:
+
+* TOTAL adapters: ${total}
+* ✅ SUCCESS: ${successLines.length}
+* ❌ FAIL: ${errorLines.length}
+* ⚠ WARN: ${warningLines.length}
+* ⏳ PENDING: ${pendingLines.length}
 
 ${result}
 `;
