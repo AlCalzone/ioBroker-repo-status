@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const repoRegex = /github(usercontent)?\.com\/([^\/]+)\/([^\/]+)\//;
+const repoRegex = /github(?:usercontent)?\.com\/([^\/]+)\/([^\/]+)\//;
 
 export interface Repository {
 	owner: string;
@@ -25,5 +25,6 @@ export async function readLatestRepo(): Promise<Map<string, Repository>> {
 			console.warn(`Could not find GitHub repo for ${adapter}`);
 		}
 	}
+	console.error(`Found ${ret.size} repositories`);
 	return ret;
 }
