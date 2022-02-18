@@ -3,26 +3,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.checkAll = void 0;
 const checks_1 = require("./checks");
 const repo_1 = require("./repo");
 const ansi_colors_1 = require("ansi-colors");
 const yargs_1 = __importDefault(require("yargs"));
 const async_1 = require("alcalzone-shared/async");
 const utils_1 = require("./utils");
-if (!yargs_1.default.argv.token && !process.env.GITHUB_TOKEN) {
-    console.error((0, ansi_colors_1.red)(`ERROR: You need a github token to use this because of rate limits!`));
-    console.error((0, ansi_colors_1.red)(`Please pass one with the argument --token=${(0, ansi_colors_1.bold)("<your-token>")} or the GITHUB_TOKEN environment variable`));
-    process.exit(1);
-}
-async function main() {
+async function checkAll() {
     const repos = await (0, repo_1.readLatestRepo)();
     const maxAdapterNameLength = Math.max(...[...repos.keys()].map((key) => key.length));
     async function checkRepo(adapterName, repo) {
-        // let logMessage =
-        // 	(adapterName + ":").padEnd(maxAdapterNameLength + 1, " ") + " ";
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         const adapterUrl = `https://github.com/${repo.owner}/${repo.repo}`;
-        let logMessage = `| [${adapterName}](${adapterUrl}) | `;
         let result;
         // If we hit the rate limiter, try up to 3 times
         const retryAttempts = 3;
@@ -45,18 +38,10 @@ async function main() {
                         continue;
                     }
                 }
-                logMessage += ` ❌&nbsp;FAIL | Could not load Github repo! `;
-                // logMessage += red("[FAIL] Could not load Github repo!");
+                let comment = "Could not load Github repo!";
                 if ((_b = e.response) === null || _b === void 0 ? void 0 : _b.status) {
-                    logMessage += ` (status ${e.response.status}, ${e.response.statusText})`;
+                    comment += ` (status ${e.response.status}, ${e.response.statusText})`;
                 }
-                // if (e.response?.status) {
-                // 	logMessage += red(
-                // 		` (status ${e.response.status}, ${e.response.statusText})`,
-                // 	);
-                // }
-                logMessage += ` |`;
-                // logMessage += `\n· ${adapterUrl}`;
                 // Add debug logging so we can see the response headers
                 if ((_c = e.response) === null || _c === void 0 ? void 0 : _c.headers) {
                     console.error();
@@ -65,41 +50,47 @@ async function main() {
                         console.error((0, ansi_colors_1.blue)(`· ${h}: ${val}`));
                     }
                 }
-                return logMessage;
+                return {
+                    adapterName,
+                    adapterUrl,
+                    status: utils_1.AdapterCheckStatus.Failure,
+                    comment,
+                };
             }
         }
         if (result) {
             if (result.status === "failure") {
-                // logMessage += red("[FAIL]");
-                logMessage += `❌&nbsp;FAIL | `;
-                let hasLink = false;
-                if (result.checks.length) {
-                    for (const { status, url } of result.checks) {
-                        if (status === "failure") {
-                            // logMessage += `\n· ${red("[FAIL]")} ${url}`;
-                            logMessage += `${hasLink ? "<br />" : ""}🧪 [failing check](${url})`;
-                            hasLink = true;
-                        }
-                    }
-                }
-                logMessage += " |";
+                const checkUrl = (_d = result.checks.find((c) => c.status === "failure")) === null || _d === void 0 ? void 0 : _d.url;
+                return {
+                    adapterName,
+                    adapterUrl,
+                    status: utils_1.AdapterCheckStatus.Failure,
+                    checkUrl,
+                };
             }
             else if (result.status === "success") {
-                logMessage += "✅&nbsp;SUCCESS |  |";
-                // logMessage += green("[SUCCESS]");
-            }
-            else if (result.status === "pending") {
-                logMessage += `⏳&nbsp;PENDING |  |`;
-                // logMessage += yellow("[PENDING]");
-                // logMessage += `\n· ${adapterUrl}`;
+                return {
+                    adapterName,
+                    adapterUrl,
+                    status: utils_1.AdapterCheckStatus.Success,
+                };
+            } /*if (result.status === "pending")*/
+            else {
+                return {
+                    adapterName,
+                    adapterUrl,
+                    status: utils_1.AdapterCheckStatus.Pending,
+                };
             }
         }
         else {
-            logMessage += `⚠&nbsp;WARN | No CI detected or CI not working! |`;
-            // logMessage += yellow("[WARN] No CI detected or CI not working!");
-            // logMessage += `\n· ${adapterUrl}`;
+            return {
+                adapterName,
+                adapterUrl,
+                status: utils_1.AdapterCheckStatus.Warning,
+                comment: "No CI detected or CI not working!",
+            };
         }
-        return logMessage;
     }
     // Execute some requests in parallel
     const concurrency = 10;
@@ -108,16 +99,35 @@ async function main() {
     while (all.length > 0) {
         pools.push(all.splice(0, concurrency));
     }
-    console.log("| Adapter | Status | Comment        |");
-    console.log("| :------ | :----- | :------------- |");
+    let results = [];
     for (const pool of pools) {
         const tasks = pool.map(([adapterName, repo]) => checkRepo(adapterName, repo));
-        const lines = await Promise.all(tasks);
-        for (const line of lines)
-            console.log(line);
+        const chunk = await Promise.all(tasks);
+        results.push(...chunk);
+        for (const result of chunk) {
+            console.log((0, utils_1.formatResultCLI)(result, maxAdapterNameLength));
+        }
     }
+    console.log(`
+Statistics
+==========
+TOTAL adapters: ${results.length}
+✅ SUCCESS:     ${results.filter((r) => r.status === utils_1.AdapterCheckStatus.Success).length}
+❌ FAIL:        ${results.filter((r) => r.status === utils_1.AdapterCheckStatus.Failure).length}
+⚠ WARN:         ${results.filter((r) => r.status === utils_1.AdapterCheckStatus.Warning).length}
+⏳ PENDING:     ${results.filter((r) => r.status === utils_1.AdapterCheckStatus.Pending).length}
+`);
+    return results;
 }
-main();
+exports.checkAll = checkAll;
+if (require.main === module) {
+    if (!yargs_1.default.argv.token && !process.env.GITHUB_TOKEN) {
+        console.error((0, ansi_colors_1.red)(`ERROR: You need a github token to use this because of rate limits!`));
+        console.error((0, ansi_colors_1.red)(`Please pass one with the argument --token=${(0, ansi_colors_1.bold)("<your-token>")} or the GITHUB_TOKEN environment variable`));
+        process.exit(1);
+    }
+    checkAll();
+}
 process.on("uncaughtException", (err) => {
     console.error(err);
 });

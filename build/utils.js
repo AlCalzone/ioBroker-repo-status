@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.tryGetRateLimitWaitTime = void 0;
+exports.formatResultsGithub = exports.formatResultCLI = exports.AdapterCheckStatus = exports.tryGetRateLimitWaitTime = void 0;
+const ansi_colors_1 = require("ansi-colors");
 /** Checks if the given error indicates a rate limit and retrieves the wait time in milliseconds */
 function tryGetRateLimitWaitTime(e) {
     var _a;
@@ -24,3 +25,81 @@ function tryGetRateLimitWaitTime(e) {
     }
 }
 exports.tryGetRateLimitWaitTime = tryGetRateLimitWaitTime;
+var AdapterCheckStatus;
+(function (AdapterCheckStatus) {
+    AdapterCheckStatus[AdapterCheckStatus["Success"] = 0] = "Success";
+    AdapterCheckStatus[AdapterCheckStatus["Failure"] = 1] = "Failure";
+    AdapterCheckStatus[AdapterCheckStatus["Warning"] = 2] = "Warning";
+    AdapterCheckStatus[AdapterCheckStatus["Pending"] = 3] = "Pending";
+})(AdapterCheckStatus = exports.AdapterCheckStatus || (exports.AdapterCheckStatus = {}));
+function compareCheckResult(r1, r2) {
+    let result = Math.sign(r1.status - r2.status);
+    if (result === 0) {
+        result = r1.adapterName.localeCompare(r2.adapterName);
+    }
+    return result;
+}
+function formatResultCLI(r, maxAdapterNameLength) {
+    let ret = (r.adapterName + ":").padEnd(maxAdapterNameLength + 1, " ") + " ";
+    switch (r.status) {
+        case AdapterCheckStatus.Success:
+            ret += (0, ansi_colors_1.green)("[SUCCESS]");
+            break;
+        case AdapterCheckStatus.Failure:
+            ret += (0, ansi_colors_1.red)("[FAILURE]");
+            if (r.comment)
+                ret += " " + (0, ansi_colors_1.red)(r.comment);
+            ret += `\n· ${r.checkUrl || r.adapterUrl}`;
+            break;
+        case AdapterCheckStatus.Warning:
+            ret += (0, ansi_colors_1.yellow)(`[WARN] ${r.comment || ""}`);
+            ret += `\n· ${r.checkUrl || r.adapterUrl}`;
+            break;
+        case AdapterCheckStatus.Pending:
+            ret += (0, ansi_colors_1.blue)("[PENDING]");
+            ret += `\n· ${r.adapterUrl}`;
+            break;
+    }
+    return ret;
+}
+exports.formatResultCLI = formatResultCLI;
+function formatResultsGithub(results) {
+    results = results.sort(compareCheckResult);
+    let ret = `
+* TOTAL adapters: ${results.length}
+* ✅ SUCCESS:     ${results.filter((r) => r.status === AdapterCheckStatus.Success).length}
+* ❌ FAIL:        ${results.filter((r) => r.status === AdapterCheckStatus.Failure).length}
+* ⚠ WARN:         ${results.filter((r) => r.status === AdapterCheckStatus.Warning).length}
+* ⏳ PENDING:      ${results.filter((r) => r.status === AdapterCheckStatus.Pending).length}
+
+| Adapter | Status | Comment        |
+| :------ | :----- | :------------- |
+`;
+    for (const r of results) {
+        ret += `| [${r.adapterName}](${r.adapterUrl}) | `;
+        switch (r.status) {
+            case AdapterCheckStatus.Success:
+                ret += "✅&nbsp;SUCCESS |  |";
+                break;
+            case AdapterCheckStatus.Failure:
+                ret += "❌&nbsp;FAIL | ";
+                if (r.comment)
+                    ret += r.comment;
+                else if (r.checkUrl) {
+                    ret += `🧪 [failing check](${r.checkUrl})`;
+                }
+                ret += ` |`;
+                break;
+            case AdapterCheckStatus.Warning:
+                ret += `⚠&nbsp;WARN | ${r.comment || ""} |`;
+                ret += `\n· ${r.checkUrl || r.adapterUrl}`;
+                break;
+            case AdapterCheckStatus.Pending:
+                ret += "⏳&nbsp;PENDING |  |";
+                break;
+        }
+        ret += "\n";
+    }
+    return ret;
+}
+exports.formatResultsGithub = formatResultsGithub;
