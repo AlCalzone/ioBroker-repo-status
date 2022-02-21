@@ -1,16 +1,19 @@
 const c = require("ansi-colors");
 const github = require("@actions/github");
 const core = require("@actions/core");
-const { formatResultsGithub } = require("../../../build/index");
 
+// Set the github token env var before requiring the main module
 const githubToken = core.getInput("githubToken");
+process.env.GITHUB_TOKEN = githubToken;
+
 const octokit = new github.GitHub(githubToken);
 const context = github.context;
 
+const { formatResultsGithub, checkAll } = require("../../../build/index");
+
 (async function main() {
 
-	process.env.GITHUB_TOKEN = githubToken
-	const checkResults = await require("../../../build/index").checkAll();
+	const checkResults = await checkAll();
 	const result = `This is the current adapter build status at ${new Date().toISOString()}:
 
 ${formatResultsGithub(checkResults)}
