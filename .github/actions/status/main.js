@@ -1,3 +1,5 @@
+// @ts-check
+
 const c = require("ansi-colors");
 const github = require("@actions/github");
 const core = require("@actions/core");
@@ -9,7 +11,8 @@ process.env.GITHUB_TOKEN = githubToken;
 const octokit = new github.GitHub(githubToken);
 const context = github.context;
 
-const { formatResultsGithub, checkAll } = require("../../../build/index");
+const { checkAll } = require("../../../build/index");
+const { formatResultsGithub } = require("../../../build/utils");
 
 (async function main() {
 
