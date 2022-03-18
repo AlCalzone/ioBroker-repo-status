@@ -91,8 +91,13 @@ function formatResultsGithub(results) {
                 ret += ` |`;
                 break;
             case AdapterCheckStatus.Warning:
-                ret += `⚠&nbsp;WARN | ${r.comment || ""} |`;
-                ret += `\n· ${r.checkUrl || r.adapterUrl}`;
+                ret += `⚠&nbsp;WARN | `;
+                if (r.comment)
+                    ret += r.comment;
+                else if (r.checkUrl) {
+                    ret += `🧪 [failing check](${r.checkUrl})`;
+                }
+                ret += ` |`;
                 break;
             case AdapterCheckStatus.Pending:
                 ret += "⏳&nbsp;PENDING |  |";
