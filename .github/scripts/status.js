@@ -36,3 +36,4 @@ ${formatResultsGithub(checkResults)}
 		console.error(c.yellow("No changes to the build status!"));
 	}
 }
+module.exports = main;
