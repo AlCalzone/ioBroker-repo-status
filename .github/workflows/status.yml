@@ -15,19 +15,20 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [12.x]
+        node-version: [20]
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
     - name: Install dependencies
       run: npm ci
     - name: Run update action
-      uses: ./.github/actions/status
+      uses: actions/github-script@v7
       with:
-        githubToken: ${{ secrets.ALCALZONE_TOKEN }}
-      env:
-        CI: true
+        github-token: ${{secrets.ALCALZONE_TOKEN}}
+        script: |
+          const status = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/status.js`);
+          return status({ github, context, core });
